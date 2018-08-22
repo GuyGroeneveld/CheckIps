@@ -17,13 +17,13 @@ Microsoft published the known IP Subnet as described in this link
   .EXAMPLE
   To get established connection to known O365 subnets and having the known subnets saved in the current directory
 
-  .\CheckIP5.ps1
+  .\CheckIP.ps1
   
   
   .EXAMPLE
   To get report on only IP address related to known subnets and activity logged in checkips.log in the current directory
 
-  .\CheckIP5.ps1 -KnownIPOnly -LogEnabled
+  .\CheckIP.ps1 -KnownIPOnly -LogEnabled
 
     
   .PARAMETER KnownIPOnly
