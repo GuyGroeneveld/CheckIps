@@ -1,4 +1,4 @@
-﻿<#
+<#
   .SYNOPSIS
   This script retrieves known Office 365 subnets and check which established https connections are related
 
@@ -20,14 +20,14 @@
   To get established connection to known O365 subnets and having the known subnets saved in the current directory
 
   .\CheckIP.ps1
-
-
+  
+  
   .EXAMPLE
   To get report on only IP address related to known subnets and activity logged in checkips.log in the current directory
 
   .\CheckIP.ps1 -KnownIPOnly -LogEnabled
 
-
+    
   .PARAMETER KnownIPOnly
   Switch parameter. Specifying it makes the oiutput with only matching addresses
 
@@ -55,7 +55,7 @@ else
 }
 
 <#Function to create log entry in file $LogName#>
-Function Write-LogEntry
+Function Write-LogEntry 
 {
     param(
         [string] $LogName=$Null ,
@@ -66,9 +66,9 @@ Function Write-LogEntry
     [string]$logstring = "$currentdaytime : $LogEntryText"
 
 
-    if ($LogName -NotLike $Null)
+    if ($LogName -NotLike $Null) 
     {
-
+        
         $logstring | Out-File -FilePath $LogName -append
         Write-Verbose -Message $logstring
     }
@@ -124,10 +124,10 @@ Function Get-WorkloadIPs
         $iplist,
         [string]$LogName=$log
         )
-
+    
     $HttpsIps = $iplist |  Where-Object { $_.TcpPorts -like "*443*" -and $_.ips -ne $null }
     $HttpsIps = $HttpsIps | Sort-Object serviceArea
-
+    
     $HttpsIPList = [System.Collections.ArrayList]@()
 
     For ($ipall = 0 ; $ipall -lt $HttpsIps.count ; $ipall++)
@@ -136,35 +136,37 @@ Function Get-WorkloadIPs
 
          for ($xx = 0; $xx -lt $ipss.count ; $xx++)
          {
-
+        
             [int]$Mask = ([string]$ipss[$xx]).split("/")[1]
-
+                   
             <#Sometimes there are same IPs with different Urls
             for example
             111.221.112.0/21   {*.outlook.com, *.outlook.office.com, autodiscover-*.outlook.com}
-            111.221.112.0/21   {outlook.office.com, outlook.office365.com}
-            So we merge the URLs and remove the dupplicate
+            111.221.112.0/21   {outlook.office.com, outlook.office365.com} 
+            So we merge the URLs and remove the dupplicate      
             #>
-
+        
             $URLs = $HttpsIps[$ipall].urls
+            $Category = $HttpsIps[$ipall].category
 
             if (($HttpsIPList -ne $null) -and $HttpsIPList.Definition.contains($ipss[$xx]))
             {
-
+                
                 $toremove = $HttpsIPList | where { $_.definition -eq $ipss[$xx]}
-
-
+                
+                
                 $URLs = ($URLs + $toremove.urls) | Select-Object -Unique
-                $HttpsIPList.Remove($toremove)
-            }
-
+                $Category = ($Category + $toremove.category) | Select-Object -Unique
+                $HttpsIPList.Remove($toremove) 
+            }   
+            
             $AddrInBinary = $null
 
             If (([string]$ipss[$xx]).contains("."))
             {
                 $AddrInBinary = Convert-IPv4AddrToBinary $ipss[$xx]
-             }
-
+             } 
+                        
             if ($AddrInBinary)
             {
                 $WKLIPs = New-Object -type PSObject
@@ -175,15 +177,16 @@ Function Get-WorkloadIPs
                 $WKLIPs | Add-Member -MemberType NoteProperty -Name "serviceAreaDisplayName" -Value $HttpsIps[$ipall].serviceAreaDisplayName
                 $WKLIPs | Add-Member -MemberType NoteProperty -Name "urls" -Value $URLs
                 $WKLIPs | Add-Member -MemberType NoteProperty -Name "required" -Value $HttpsIps[$ipall].required
+                $WKLIPs | Add-Member -MemberType NoteProperty -Name "category" -Value $Category
                 [void]$HttpsIPList.Add($WKLIPs)
 
             }
         }
-
+    
     }
-
+    
     Write-LogEntry -LogEntryText ("There are " + $HttpsIPList.Count + " different known subnets") -LogName $LogName
-
+    
     return $HttpsIPList
 }
 
@@ -199,7 +202,7 @@ Function Get-HttpsConnections
     Write-LogEntry ("There are " + $connections.count + " established https connections") -LogName $LogName
 
     $ConnectionList = [System.Collections.ArrayList]@()
-
+    
     for ($conn = 0; $conn -lt $connections.count; $conn++)
     {
         $RemoteAddrInBinary = $null
@@ -207,15 +210,15 @@ Function Get-HttpsConnections
         If ($remoteaddress.contains("."))
         {
             $RemoteAddrInBinary = Convert-IPv4AddrToBinary $remoteaddress
-        }
+        } 
         if ($remoteaddress.contains(":"))
         {
             #$RemoteAddrInBinary = Convert-IPv6AddrToBinary $remoteaddress
-
+            
         }
 
         if ($RemoteAddrInBinary)
-        {
+        {                  
             $process = Get-Process -id $connections[$conn].owningprocess
             $ConnectionDetails = New-Object -type PSObject
             $ConnectionDetails | Add-Member -MemberType NoteProperty -Name "Process" -Value $process.Name
@@ -241,22 +244,22 @@ Function Get-SubnetMatchs
         [string]$LogName=$log
         )
 
-
+    
     $AddressSubnetMatchList = [System.Collections.ArrayList]@()
     [string]$daytime = get-date -Format G
     [int]$countmatch = 0
     For ($x = 0 ; $x -lt $IPs.count ; $x++)
     {
        [bool]$foundmatch = $false
-
+       
        For ($m = 0; $m -lt $Subnets.count ; $m++)
        {
-
+   
             $substring = $Subnets[$m].mask
-
+        
             if ($Subnets[$m].MaskInBinary.substring(0,$substring) -eq $IPs[$x].BinaryAddress.substring(0,$substring))
-            {
-
+            { 
+                                
                 $AddressSubnetMatch = New-Object -type PSObject
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Time" -value $daytime
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Process" -Value $IPs[$x].process
@@ -266,12 +269,13 @@ Function Get-SubnetMatchs
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "subnet" -Value $Subnets[$m].definition
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "workload" -Value $Subnets[$m].workload
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Required" -Value $Subnets[$m].required
-                $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "URLs" -Value $Subnets[$m].Urls
+                $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Category" -Value $Subnets[$m].category
+                $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "URLs" -Value ($Subnets[$m].Urls -join "'")
                 [void]$AddressSubnetMatchList.Add($AddressSubnetMatch)
                 $foundmatch = $True
                 $countmatch++
             }
-
+        
        }
 
        if ($foundmatch -eq $false -and $KnownIPOnly -eq $false)
@@ -285,8 +289,9 @@ Function Get-SubnetMatchs
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "subnet" -Value "N/A"
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "workload" -Value "N/A"
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Required" -Value "N/A"
+            $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Category" -Value "N/A"
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "URLs" -Value "N/A"
-            [void]$AddressSubnetMatchList.Add($AddressSubnetMatch)
+            [void]$AddressSubnetMatchList.Add($AddressSubnetMatch) 
        }
 
     }
@@ -331,8 +336,3 @@ $listeips = Get-WorkloadRestData -WorkPath $Path
 $activeips = Get-HttpsConnections
 
 Get-SubnetMatchs -IPs $activeips -Subnets $listeips
-
-
-
-
-
