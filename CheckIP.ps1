@@ -41,7 +41,8 @@
         [parameter(ValueFromPipeline=$True,Mandatory=$false,Position=0)]
         $Path = (Get-Location).Path,
         [switch]$LogEnabled=$false,
-        [switch]$KnownIPOnly=$false
+        [switch]$KnownIPOnly=$false,
+        [switch]$ForceUploadList=$false
         )
 
 
@@ -155,8 +156,30 @@ Function Get-WorkloadIPs
                 $toremove = $HttpsIPList | where { $_.definition -eq $ipss[$xx]}
                 
                 
-                $URLs = ($URLs + $toremove.urls) | Select-Object -Unique
-                $Category = ($Category + $toremove.category) | Select-Object -Unique
+                $URLs = ($URLs + $toremove.urls)
+                
+                switch ($toremove.category)
+                {
+                    "optimize" 
+                    {
+                        $Category = "Optimize"
+                    }
+                    "Allow" 
+                    {
+                        if ($Category -eq "Optimize" -or $Category -eq "Default")
+                        {
+                            #$category is higher and doesn't change
+                        }
+                    }
+                    "Default" 
+                    {
+                        if ($Category -eq "Allow")
+                        {
+                            $Category = $toremove.category
+                        }
+                    }
+                }
+                
                 $HttpsIPList.Remove($toremove) 
             }   
             
@@ -270,7 +293,7 @@ Function Get-SubnetMatchs
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "workload" -Value $Subnets[$m].workload
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Required" -Value $Subnets[$m].required
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Category" -Value $Subnets[$m].category
-                $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "URLs" -Value ($Subnets[$m].Urls -join "'")
+                $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "URLs" -Value ($Subnets[$m].Urls -join ",")
                 [void]$AddressSubnetMatchList.Add($AddressSubnetMatch)
                 $foundmatch = $True
                 $countmatch++
@@ -312,14 +335,14 @@ Function Get-WorkloadRestData
         )
     $version = (Invoke-RestMethod -uri "https://endpoints.office.com/version/Worldwide?ClientRequestId=e0792bff-483a-4046-9b71-97293aebecb2").latest
     $DestinationPath = $WorkPath + "\" + + $version + ".xml"
-    if (!(Test-Path $DestinationPath))
+    if (!(Test-Path $DestinationPath) -or $ForceUploadList -eq $true)
     {
         #The file does not exist or is not the last version
         Write-LogEntry -LogEntryText "Retrieving Workload IPs for version $version as we couldn't find it in $WorkPath" -LogName $LogName
         $EndPoints = Invoke-RestMethod -uri "https://endpoints.office.com/endpoints/Worldwide?noipv6&ClientRequestId=e0792bff-483a-4046-9b71-97293aebecb2"
 
         $WorkloadIps = Get-WorkloadIPs -iplist $EndPoints
-        $WorkloadIps | Export-Clixml -Path $DestinationPath
+        $WorkloadIps | Export-Clixml -Path $DestinationPath -Force
     }
     Else
     {
