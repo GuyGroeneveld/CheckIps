@@ -31,6 +31,9 @@
   .PARAMETER KnownIPOnly
   Switch parameter. Specifying it makes the oiutput with only matching addresses
 
+  .PARAMETER ForceUploadList
+  Switch parameter to force the upload of the list
+  
   .PARAMETER LogEnabled
   The name of a text file to write the mailbox name being scanned. This will appear also in the console with the Verbose mode
   #>
@@ -45,6 +48,7 @@
         [switch]$ForceUploadList=$false
         )
 
+$ScriptVersion = 1.2
 
 if ($LogEnabled)
 {
@@ -116,12 +120,12 @@ Function Convert-IPv4AddrToBinary
 
 
 
-Function Get-WorkloadIPs
+Function Get-ServiceAreaIPs
 {
     [cmdletbinding()]
     Param (
         [parameter(ValueFromPipeline=$True,Mandatory=$false,Position=0)]
-        $workload,
+        $ServiceArea,
         $iplist,
         [string]$LogName=$log
         )
@@ -193,7 +197,7 @@ Function Get-WorkloadIPs
             if ($AddrInBinary)
             {
                 $WKLIPs = New-Object -type PSObject
-                $WKLIPs | Add-Member -MemberType NoteProperty -Name "Workload" -Value $HttpsIps[$ipall].serviceArea
+                $WKLIPs | Add-Member -MemberType NoteProperty -Name "ServiceArea" -Value $HttpsIps[$ipall].serviceArea
                 $WKLIPs | Add-Member -MemberType NoteProperty -Name "Mask" -Value $Mask
                 $WKLIPs | Add-Member -MemberType NoteProperty -Name "MaskInBinary" -Value $AddrInBinary
                 $WKLIPs | Add-Member -MemberType NoteProperty -Name "Definition" -Value $ipss[$xx]
@@ -290,7 +294,7 @@ Function Get-SubnetMatchs
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "LocalPort" -Value $IPs[$x].LocalPort
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Remoteip" -Value $IPs[$x].remoteaddress
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "subnet" -Value $Subnets[$m].definition
-                $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "workload" -Value $Subnets[$m].workload
+                $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "ServiceArea" -Value $Subnets[$m].ServiceArea
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Required" -Value $Subnets[$m].required
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Category" -Value $Subnets[$m].category
                 $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "URLs" -Value ($Subnets[$m].Urls -join ",")
@@ -310,7 +314,7 @@ Function Get-SubnetMatchs
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "LocalPort" -Value $IPs[$x].LocalPort
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Remoteip" -Value $IPs[$x].remoteaddress
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "subnet" -Value "N/A"
-            $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "workload" -Value "N/A"
+            $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "ServiceArea" -Value "N/A"
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Required" -Value "N/A"
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "Category" -Value "N/A"
             $AddressSubnetMatch | Add-Member -MemberType NoteProperty -Name "URLs" -Value "N/A"
@@ -325,7 +329,7 @@ Function Get-SubnetMatchs
 }
 
 
-Function Get-WorkloadRestData
+Function Get-ServiceAreaRestData
 {
 [cmdletbinding()]
     Param (
@@ -334,28 +338,29 @@ Function Get-WorkloadRestData
         [string]$LogName=$log
         )
     $version = (Invoke-RestMethod -uri "https://endpoints.office.com/version/Worldwide?ClientRequestId=e0792bff-483a-4046-9b71-97293aebecb2").latest
-    $DestinationPath = $WorkPath + "\" + + $version + ".xml"
+    $DestinationPath = $WorkPath + "\" + "Endpoind_version_" + $version + "_script_version_" + $ScriptVersion + ".xml"
     if (!(Test-Path $DestinationPath) -or $ForceUploadList -eq $true)
     {
         #The file does not exist or is not the last version
-        Write-LogEntry -LogEntryText "Retrieving Workload IPs for version $version as we couldn't find it in $WorkPath" -LogName $LogName
+        Write-LogEntry -LogEntryText "Retrieving ServiceArea IPs for version $version as we couldn't find it in $WorkPath" -LogName $LogName
         $EndPoints = Invoke-RestMethod -uri "https://endpoints.office.com/endpoints/Worldwide?noipv6&ClientRequestId=e0792bff-483a-4046-9b71-97293aebecb2"
 
-        $WorkloadIps = Get-WorkloadIPs -iplist $EndPoints
-        $WorkloadIps | Export-Clixml -Path $DestinationPath -Force
+        $ServiceAreaIps = Get-ServiceAreaIPs -iplist $EndPoints
+        $ServiceAreaIps | Export-Clixml -Path $DestinationPath -Force
     }
     Else
     {
-        Write-LogEntry -LogEntryText "Found current version of workload IPs in $WorkPath" -LogName $LogName
-        $WorkloadIps = Import-Clixml -Path $DestinationPath
+        Write-LogEntry -LogEntryText "Found current version of ServiceArea IPs in $WorkPath" -LogName $LogName
+        $ServiceAreaIps = Import-Clixml -Path $DestinationPath
     }
 
-    return $WorkloadIps
+    return $ServiceAreaIps
 }
 
 Write-LogEntry -LogEntryText "**** Starting script run *****" -LogName $Log
 
-$listeips = Get-WorkloadRestData -WorkPath $Path
+$listeips = Get-ServiceAreaRestData -WorkPath $Path
 $activeips = Get-HttpsConnections
 
 Get-SubnetMatchs -IPs $activeips -Subnets $listeips
+
