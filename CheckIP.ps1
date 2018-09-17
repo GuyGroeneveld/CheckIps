@@ -338,7 +338,7 @@ Function Get-ServiceAreaRestData
         [string]$LogName=$log
         )
     $version = (Invoke-RestMethod -uri "https://endpoints.office.com/version/Worldwide?ClientRequestId=e0792bff-483a-4046-9b71-97293aebecb2").latest
-    $DestinationPath = $WorkPath + "\" + "EndpoinT_version_" + $version + "_script_version_" + $ScriptVersion + ".xml"
+    $DestinationPath = $WorkPath + "\" + "Endpoint_version_" + $version + "_script_version_" + $ScriptVersion + ".xml"
     if (!(Test-Path $DestinationPath) -or $ForceUploadList -eq $true)
     {
         #The file does not exist or is not the last version
